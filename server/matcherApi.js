@@ -31,4 +31,23 @@ router.post("/match", validatePhrase, (req, res, next) => {
   }
 });
 
+// POST /api/analyze-sign
+// Placeholder implementation for deployment: validates payload and returns
+// configurable fallback text until a real sign model is integrated.
+router.post("/analyze-sign", (req, res) => {
+  const { image } = req.body || {};
+
+  if (!image || typeof image !== "string") {
+    return res.status(400).json({ message: '"image" is required and must be a base64 string.' });
+  }
+
+  if (!image.startsWith("data:image/")) {
+    return res.status(400).json({ message: '"image" must be a data URL image payload.' });
+  }
+
+  const detectedText = process.env.SIGN_ANALYZER_FALLBACK_TEXT || "";
+
+  return res.status(200).json({ detectedText });
+});
+
 module.exports = router;

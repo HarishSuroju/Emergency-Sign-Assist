@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5000" : "");
 
 function App() {
   const [textInput, setTextInput] = useState("");
@@ -311,7 +311,7 @@ function App() {
                   <div>
                     <p className="text-sm font-medium">{item.content}</p>
                     <p className="text-xs text-slate-500">
-                      {item.type} • {formatTimeAgo(item.timestamp)}
+                      {item.type} - {formatTimeAgo(item.timestamp)}
                     </p>
                   </div>
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full border border-emerald-200">
