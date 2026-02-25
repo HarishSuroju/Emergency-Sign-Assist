@@ -13,7 +13,17 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
   : ["http://localhost:5173"];
 
-app.use(cors({ origin: allowedOrigins }));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+  })
+);
 
 app.use(express.json({ limit: "10mb" }));
 app.use("/signs", express.static(path.join(__dirname, "public/signs")));
