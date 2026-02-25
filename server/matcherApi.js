@@ -31,7 +31,15 @@ router.post("/match", validatePhrase, (req, res, next) => {
   }
 });
 
-// POST /api/analyze-sign
+router.post("/analyze-sign", (req, res) => {
+  return res.status(200).json({
+    bestMatch: null,
+    confidence: 0,
+    negation: false,
+    suggestions: [],
+  });
+});
+
 // Placeholder implementation for deployment: validates payload and returns
 // configurable fallback text until a real sign model is integrated.
 router.post("/analyze-sign", (req, res) => {

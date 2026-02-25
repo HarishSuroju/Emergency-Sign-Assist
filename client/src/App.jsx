@@ -217,10 +217,10 @@ function App() {
           {/* TEXT CONTAINER */}
           <section className="rounded-xl md:rounded-2xl bg-white/70 backdrop-blur-xl p-3 md:p-6 shadow-xl border border-white/40">
             <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4 text-indigo-700">
-              Speech / Text
+              🩺 Doctor Communication
             </h2>
 
-            <div className="rounded-xl bg-indigo-100/60 border border-indigo-200 h-28 md:h-40 p-3 md:p-4 text-indigo-800 italic text-sm md:text-base mb-3 md:mb-4">
+            <div className="rounded-xl bg-indigo-100/60 border border-indigo-200 h-20 md:h-40 p-3 md:p-4 text-indigo-800 italic text-sm md:text-base mb-3 md:mb-4">
               {textResponse || "Responses will appear here..."}
             </div>
 
@@ -261,10 +261,10 @@ function App() {
           {/* VIDEO CONTAINER */}
           <section className="rounded-xl md:rounded-2xl bg-white/70 backdrop-blur-xl p-3 md:p-6 shadow-xl border border-white/40">
             <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4 text-emerald-600">
-              Video
+              🧑‍🦽 Patient Communication
             </h2>
 
-            <div className="rounded-xl bg-slate-100 border border-slate-300 h-36 md:h-48 mb-3 md:mb-4 overflow-hidden flex items-center justify-center">
+            <div className="rounded-xl bg-slate-100 border border-slate-300 h-50 md:h-64 mb-3 md:mb-4 overflow-hidden flex items-center justify-center">
               {videoPath ? (
                 <video src={videoPath} controls autoPlay className="w-full h-full object-cover" />
               ) : isCameraOn ? (
