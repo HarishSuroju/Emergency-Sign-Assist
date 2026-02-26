@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Hands } from "@mediapipe/hands";
+import { Camera } from "@mediapipe/camera_utils";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5000" : "");
@@ -22,6 +24,7 @@ function App() {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const noticeTimeoutRef = useRef(null);
+  const [landmarks, setLandmarks] = useState(null);
 
   const addHistory = (type, content, status = "sent") => {
     setHistory((prev) =>
@@ -130,18 +133,56 @@ function App() {
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+    });
 
+    setIsCameraOn(true);
+
+    if (videoRef.current) {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-      setIsCameraOn(true);
-      setUploadedVideoUrl("");
-    } catch {
-      alert("Camera access denied.");
     }
+
+    const hands = new Hands({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.5,  
+      minTrackingConfidence: 0.5,
+    });
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const detectedHand = results.multiHandLandmarks[0];
+
+        const formatted = detectedHand.map((point) => ({
+          x: point.x,
+          y: point.y,
+          z: point.z,
+        }));
+
+        setLandmarks({
+          hands: [formatted],
+        });
+      } else {
+        setLandmarks({ hands: [] });
+      }
+    });
+
+    const camera = new Camera(videoRef.current, {
+      onFrame: async () => {
+        await hands.send({ image: videoRef.current });
+      },
+      width: 640,
+      height: 480,
+    });
+
+    camera.start();
   };
 
   const captureFrame = () => {
@@ -159,15 +200,22 @@ function App() {
   };
 
   const sendVideoToServer = async () => {
-    const image = captureFrame();
-    if (!image) return;
+    if (!landmarks || !landmarks.hands || landmarks.hands.length === 0) {
+      alert("No hand detected.");
+      return;
+    }
 
     setIsVideoLoading(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/analyze-sign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image }),
+        body: JSON.stringify({
+          landmarks: {
+            hands: landmarks.hands
+          }
+        }),
       });
 
       const data = await response.json();
@@ -176,7 +224,7 @@ function App() {
         throw new Error(data?.message || "Failed to analyze sign.");
       }
 
-      const text = data.detectedText || "";
+      const text = data.bestMatch || "";
       setDetectedSignText(text);
       setTextResponse(`Detected from video: ${text}`);
       setTextInput(text);
@@ -264,15 +312,34 @@ function App() {
               🧑‍🦽 Patient Communication
             </h2>
 
-            <div className="rounded-xl bg-slate-100 border border-slate-300 h-50 md:h-64 mb-3 md:mb-4 overflow-hidden flex items-center justify-center">
-              {videoPath ? (
-                <video src={videoPath} controls autoPlay className="w-full h-full object-cover" />
-              ) : isCameraOn ? (
-                <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
-              ) : (
-                <p className="text-slate-400">No video input</p>
-              )}
-            </div>
+          <div className="rounded-xl bg-slate-100 border border-slate-300 h-50 md:h-64 mb-3 md:mb-4 overflow-hidden relative">
+
+            {/* Camera Stream */}
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className={`w-full h-full object-cover ${!isCameraOn ? "hidden" : ""}`}
+            />
+
+            {/* Processed Video Output */}
+            {videoPath && (
+              <video
+                src={videoPath}
+                controls
+                autoPlay
+                className="w-full h-full object-cover absolute top-0 left-0"
+              />
+            )}
+
+            {/* Placeholder */}
+            {!isCameraOn && !videoPath && (
+              <div className="w-full h-full flex items-center justify-center text-slate-400">
+                No video input
+              </div>
+            )}
+          </div>
 
             <button
               onClick={startCamera}
