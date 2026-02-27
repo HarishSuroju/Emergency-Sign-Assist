@@ -25,6 +25,8 @@ function App() {
   const fileInputRef = useRef(null);
   const noticeTimeoutRef = useRef(null);
   const [landmarks, setLandmarks] = useState(null);
+  const handsRef = useRef(null);
+  const cameraRef = useRef(null);
 
   const addHistory = (type, content, status = "sent") => {
     setHistory((prev) =>
@@ -128,61 +130,97 @@ function App() {
   };
 
   const startCamera = async () => {
+    if (isCameraOn) {
+      console.warn("Camera already running.");
+      return;
+    }
+
     if (!navigator.mediaDevices?.getUserMedia) {
       alert("Camera not supported.");
       return;
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-
-    setIsCameraOn(true);
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+    if (!videoRef.current) {
+      console.error("Video ref not ready.");
+      return;
     }
 
-    const hands = new Hands({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-    });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
 
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 0,
-      minDetectionConfidence: 0.5,  
-      minTrackingConfidence: 0.5,
-    });
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
 
-    hands.onResults((results) => {
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const detectedHand = results.multiHandLandmarks[0];
+      setIsCameraOn(true);
 
-        const formatted = detectedHand.map((point) => ({
-          x: point.x,
-          y: point.y,
-          z: point.z,
-        }));
-
-        setLandmarks({
-          hands: [formatted],
+      // Initialize MediaPipe only once
+      if (!handsRef.current) {
+        handsRef.current = new Hands({
+          locateFile: (file) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
         });
-      } else {
-        setLandmarks({ hands: [] });
+
+        handsRef.current.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 0,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+
+        handsRef.current.onResults((results) => {
+          if (results.multiHandLandmarks?.length > 0) {
+            const detectedHand = results.multiHandLandmarks[0];
+
+            const formatted = detectedHand.map((point) => ({
+              x: point.x,
+              y: point.y,
+              z: point.z,
+            }));
+
+            setLandmarks({ hands: [formatted] });
+          } else {
+            setLandmarks({ hands: [] });
+          }
+        });
       }
-    });
 
-    const camera = new Camera(videoRef.current, {
-      onFrame: async () => {
-        await hands.send({ image: videoRef.current });
-      },
-      width: 640,
-      height: 480,
-    });
+      // Initialize camera only once
+      if (!cameraRef.current) {
+        cameraRef.current = new Camera(videoRef.current, {
+          onFrame: async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2) return;
 
-    camera.start();
+            try {
+              await handsRef.current.send({
+                image: videoRef.current,
+              });
+            } catch (err) {
+              console.error("MediaPipe send error:", err);
+            }
+          },
+          width: 640,
+          height: 480,
+        });
+      }
+
+      cameraRef.current.start();
+    } catch (err) {
+      console.error("Camera start error:", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraRef.current) {
+      cameraRef.current.stop();
+    }
+
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    setIsCameraOn(false);
   };
 
   const captureFrame = () => {

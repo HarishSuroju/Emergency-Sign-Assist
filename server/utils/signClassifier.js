@@ -1,51 +1,9 @@
-function isFist(hand) {
-  // Simple rule: fingertips close to wrist
-  const wrist = hand[0];
-
-  const fingertipIndexes = [8, 12, 16, 20]; // MediaPipe tip indexes
-
-  let foldedCount = 0;
-
-  for (const index of fingertipIndexes) {
-    const tip = hand[index];
-
-    const distance = Math.sqrt(
-      Math.pow(tip.x - wrist.x, 2) +
-      Math.pow(tip.y - wrist.y, 2)
-    );
-
-    if (distance < 0.1) {
-      foldedCount++;
-    }
-  }
-
-  return foldedCount >= 3;
-}
-
-function isOpenPalm(hand) {
-  const wrist = hand[0];
-  const fingertipIndexes = [8, 12, 16, 20];
-
-  let extendedCount = 0;
-
-  for (const index of fingertipIndexes) {
-    const tip = hand[index];
-
-    const distance = Math.sqrt(
-      Math.pow(tip.x - wrist.x, 2) +
-      Math.pow(tip.y - wrist.y, 2)
-    );
-
-    if (distance > 0.2) {
-      extendedCount++;
-    }
-  }
-
-  return extendedCount >= 3;
+function isFingerOpen(tip, pip) {
+  return tip.y < pip.y;
 }
 
 function classifySign(landmarks) {
-  if (!landmarks.hands || landmarks.hands.length === 0) {
+  if (!landmarks || !landmarks.hands || landmarks.hands.length === 0) {
     return {
       bestMatch: null,
       confidence: 0,
@@ -54,9 +12,33 @@ function classifySign(landmarks) {
     };
   }
 
-  const primaryHand = landmarks.hands[0];
+  const hand = landmarks.hands[0];
+  if (!Array.isArray(hand) || hand.length < 21) {
+    return {
+      bestMatch: null,
+      confidence: 0,
+      negation: false,
+      suggestions: [],
+    };
+  }
 
-  if (isFist(primaryHand)) {
+  const thumbTip = hand[4];
+  const indexTip = hand[8];
+  const indexPip = hand[6];
+  const middleTip = hand[12];
+  const middlePip = hand[10];
+  const ringTip = hand[16];
+  const ringPip = hand[14];
+  const pinkyTip = hand[20];
+  const pinkyPip = hand[18];
+
+  const indexOpen = isFingerOpen(indexTip, indexPip);
+  const middleOpen = isFingerOpen(middleTip, middlePip);
+  const ringOpen = isFingerOpen(ringTip, ringPip);
+  const pinkyOpen = isFingerOpen(pinkyTip, pinkyPip);
+
+  // HELP → Open palm (all fingers open)
+  if (indexOpen && middleOpen && ringOpen && pinkyOpen) {
     return {
       bestMatch: "help",
       confidence: 85,
@@ -65,9 +47,20 @@ function classifySign(landmarks) {
     };
   }
 
-  if (isOpenPalm(primaryHand)) {
+  // FEVER → Index finger up only
+  if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) {
     return {
-      bestMatch: "stop",
+      bestMatch: "fever",
+      confidence: 75,
+      negation: false,
+      suggestions: [],
+    };
+  }
+
+  // CHEST PAIN → Fist (all closed)
+  if (!indexOpen && !middleOpen && !ringOpen && !pinkyOpen) {
+    return {
+      bestMatch: "chest pain",
       confidence: 80,
       negation: false,
       suggestions: [],
@@ -76,7 +69,7 @@ function classifySign(landmarks) {
 
   return {
     bestMatch: null,
-    confidence: 30,
+    confidence: 20,
     negation: false,
     suggestions: [],
   };

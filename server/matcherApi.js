@@ -35,6 +35,9 @@ router.post("/match", validatePhrase, (req, res, next) => {
 
 router.post("/analyze-sign", validateSignPayload, (req, res) => {
   const result = classifySign(req.body.landmarks);
+  console.log(
+    `[SIGN] recognized="${result.bestMatch || "no-match"}" confidence=${result.confidence}`
+  );
   return res.status(200).json(result);
 });
 
